@@ -81,48 +81,45 @@ pipeline {
                 }
             }
         }
+	
+	stage('Stop Existing Backend') {
+    steps {
+        sshagent(credentials: [env.SSH_CREDENTIALS]) {
+            sh """
+                ssh -o StrictHostKeyChecking=no ubuntu@${params.BACKEND_SERVER_IP} '
+                if pgrep -f app.py > /dev/null; then
+                    echo "Stopping existing backend..."
+                    pkill -f app.py || true
+                else
+                    echo "No backend process found."
+                fi
 
-        stage('Stop Existing Backend') {
-            steps {
-
-                sshagent(credentials: [env.SSH_CREDENTIALS]) {
-
-                    sh """
-                        ssh -o StrictHostKeyChecking=no ubuntu@${params.BACKEND_SERVER_IP} '
-
-                        if pgrep -f app.py >/dev/null
-                        then
-                            echo "Stopping existing backend..."
-                            pkill -f app.py
-                        else
-                            echo "No backend process found."
-                        fi
-
-                        '
-                    """
-                }
-            }
+                exit 0
+                '
+            """
         }
+    }
+}
 
         stage('Start Backend') {
-            steps {
+    steps {
+        sshagent(credentials: [env.SSH_CREDENTIALS]) {
+            sh """
+                ssh -o StrictHostKeyChecking=no ubuntu@${params.BACKEND_SERVER_IP} '
+                cd ${params.DEPLOY_DIR}
 
-                sshagent(credentials: [env.SSH_CREDENTIALS]) {
+                source venv/bin/activate
 
-                    sh """
-                        ssh -o StrictHostKeyChecking=no ubuntu@${params.BACKEND_SERVER_IP} '
+                nohup python3 app.py > backend.log 2>&1 &
 
-                        cd ${params.DEPLOY_DIR}
+                sleep 5
 
-                        . ${VENV_DIR}/bin/activate
-
-                        nohup python3 app.py > backend.log 2>&1 &
-
-                        '
-                    """
-                }
-            }
+                pgrep -f app.py
+                '
+            """
         }
+    }
+}
 
         stage('Read Backend Version') {
             steps {
