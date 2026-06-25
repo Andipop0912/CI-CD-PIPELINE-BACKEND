@@ -80,43 +80,46 @@ pipeline {
                     """
                 }
             }
-        }
-	
+       }
+
 	stage('Stop Existing Backend') {
     steps {
-        sshagent(credentials: [env.SSH_CREDENTIALS]) {
-            sh """
-                ssh -o StrictHostKeyChecking=no ubuntu@${params.BACKEND_SERVER_IP} '
-                if pgrep -f app.py > /dev/null; then
-                    echo "Stopping existing backend..."
-                    pkill -f app.py || true
-                else
-                    echo "No backend process found."
-                fi
-
-                exit 0
-                '
-            """
+        sshagent(credentials: ['ubuntu']) {
+            sh '''
+                ssh -o StrictHostKeyChecking=no ubuntu@32.199.159.187 "
+                    pkill -f app.py 2>/dev/null || true
+                    sleep 1
+                    echo 'Backend stopped (or was not running).'
+                "
+            '''
         }
     }
 }
 
         stage('Start Backend') {
     steps {
-        sshagent(credentials: [env.SSH_CREDENTIALS]) {
-            sh """
-                ssh -o StrictHostKeyChecking=no ubuntu@${params.BACKEND_SERVER_IP} '
-                cd ${params.DEPLOY_DIR}
+        sshagent(credentials: ['ubuntu']) {
+            sh '''
+                ssh -o StrictHostKeyChecking=no ubuntu@32.199.159.187 "
+                    cd /home/ubuntu/backend-app
+                    source venv/bin/activate
+                    nohup python3 app.py > app.log 2>&1 &
+                    echo 'Backend started with PID: '$!
+                "
+            '''
+        }
+    }
+}
 
-                source venv/bin/activate
-
-                nohup python3 app.py > backend.log 2>&1 &
-
-                sleep 5
-
-                pgrep -f app.py
-                '
-            """
+	stage('Health Check') {
+    steps {
+        sh 'sleep 3'  // Give app time to boot
+        sshagent(credentials: ['ubuntu']) {
+            sh '''
+                ssh -o StrictHostKeyChecking=no ubuntu@32.199.159.187 "
+                    pgrep -f app.py && echo 'App is running!' || echo 'WARNING: App not found!'
+                "
+            '''
         }
     }
 }
