@@ -84,7 +84,7 @@ pipeline {
 
 	stage('Stop Existing Backend') {
     steps {
-        sshagent(credentials: ['ubuntu']) {
+        sshagent(credentials: ['env.SSH_CREDENTIALS']) {
             sh '''
                 ssh -o StrictHostKeyChecking=no ubuntu@32.199.159.187 "
                     pkill -f app.py 2>/dev/null || true
@@ -98,7 +98,7 @@ pipeline {
 
         stage('Start Backend') {
     steps {
-        sshagent(credentials: ['ubuntu']) {
+        sshagent(credentials: ['env.SSH_CREDENTIALS']) {
             sh '''
                 ssh -o StrictHostKeyChecking=no ubuntu@32.199.159.187 "
                     cd /home/ubuntu/backend-app
@@ -114,7 +114,7 @@ pipeline {
 	stage('Health Check') {
     steps {
         sh 'sleep 3'  // Give app time to boot
-        sshagent(credentials: ['ubuntu']) {
+        sshagent(credentials: ['env.SSH_CREDENTIALS']) {
             sh '''
                 ssh -o StrictHostKeyChecking=no ubuntu@32.199.159.187 "
                     pgrep -f app.py && echo 'App is running!' || echo 'WARNING: App not found!'
